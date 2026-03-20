@@ -86,6 +86,7 @@ set_global_assignment -name VERILOG_FILE zx/tzx.v
 set_global_assignment -name VERILOG_FILE zx/vdu.v
 set_global_assignment -name VERILOG_FILE zx/mist.v
 set_global_assignment -name VERILOG_FILE zx/ps2k.v
+set_global_assignment -name VERILOG_FILE zx/sdram.v
 set_global_assignment -name VERILOG_FILE zx/mapper.v
 set_global_assignment -name VERILOG_FILE zx/matrix.v
 set_global_assignment -name VERILOG_FILE zx/turbosound.v

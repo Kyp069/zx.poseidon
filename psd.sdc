@@ -19,5 +19,5 @@ set_false_path -from spiSs2
 set_false_path -from spiSs3
 set_false_path -from spiMosi
 set_false_path -to   spiMiso
-# set_false_path -to   dram*
-# set_false_path -from dram*
+set_false_path -to   dram*
+set_false_path -from dram*
