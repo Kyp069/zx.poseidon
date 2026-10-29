@@ -79,9 +79,9 @@ set_location_assignment PIN_B9 -to spiSs3
 set_location_assignment PIN_B22 -to spiMosi
 set_location_assignment PIN_B23 -to spiMiso
 
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to led*
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to rgb*
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to sync*
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to i2s*
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to dram*
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to spi*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to led*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to rgb*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to sync*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to i2s*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to dram*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to spi*

@@ -58,7 +58,7 @@ module psd
 
 	wire ne3M5 = ce[3:0] == 15;
 	wire pe3M5 = ce[3:0] == 7;
-	
+
 //--- mist ----------------------------------------------------------------------------------------
 
 	wire r;
@@ -112,6 +112,8 @@ module psd
 		.vsync  (vsync  ),
 		.rgb    (rgb    ),
 		.sync   (sync   ),
+		.midiQ  (8'd0   ),
+		.midiS  (1'd0   ),
 		.ps2kCk (ps2kCk ),
 		.ps2kD  (ps2kD  ),
 		.joy1   (joy1   ),
@@ -140,7 +142,7 @@ module psd
 	wire[15:0] rmix = { 1'd0, right }+{ 4'd0, {12{ !status[5] && ear}} };
 
 	i2s i2s(clock50, lmix, rmix, i2sCk, i2sWs, i2sQ);
-	
+
 //--- keyboard ------------------------------------------------------------------------------------
 
 	wire      strb;
@@ -194,7 +196,7 @@ module psd
 	wire[15:0] sdrD =  { 8'hFF, romIo ? dioD : d2 };
 	wire[15:0] sdrQ;
 	wire       sdrR = r2p;
-	wire       sdrW = romIo ? dioW : w2 && a2[18:17] != 0;
+	wire       sdrW = romIo ? dioW : w2;
 
 	sdram sdram
 	(
