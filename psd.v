@@ -59,7 +59,7 @@ module psd
 	wire ne3M5 = ce[3:0] == 15;
 	wire pe3M5 = ce[3:0] == 7;
 
-//--- mist ----------------------------------------------------------------------------------------
+//--- video ---------------------------------------------------------------------------------------
 
 	wire r;
 	wire g;
@@ -67,6 +67,20 @@ module psd
 	wire i;
 	wire hsync;
 	wire vsync;
+
+//--- audio ---------------------------------------------------------------------------------------
+
+	wire[14:0] left;
+	wire[14:0] right;
+
+	wire[15:0] lmix = { 1'd0,  left }+{ 4'd0, {12{ !status[5] && ear}} };
+	wire[15:0] rmix = { 1'd0, right }+{ 4'd0, {12{ !status[5] && ear}} };
+
+	i2s i2s(clock50, lmix, rmix, i2sCk, i2sWs, i2sQ);
+
+//--- mist ----------------------------------------------------------------------------------------
+
+	wire[63:0] status;
 
 	wire ps2kCk;
 	wire ps2kD;
@@ -78,11 +92,7 @@ module psd
 	wire[7:0] xaxis;
 	wire[7:0] yaxis;
 
-	wire[63:0] status;
-
-	wire       romIo;
-	wire       tzxIo;
-	wire[31:0] dioSz;
+	wire       dioE;
 	wire[26:0] dioA;
 	wire[ 7:0] dioD;
 	wire       dioW;
@@ -91,6 +101,9 @@ module psd
 	wire sdcCk;
 	wire sdcMosi;
 	wire sdcMiso;
+
+	wire tapeBusy;
+	wire tapeEar;
 
 	mist #(.RGBW(6)) mist
 	(
@@ -121,27 +134,19 @@ module psd
 		.mbtns  (mbtns  ),
 		.xaxis  (xaxis  ),
 		.yaxis  (yaxis  ),
-		.romIo  (romIo  ),   
-		.tzxIo  (tzxIo  ),   
-		.dioSz  (dioSz  ),   
+		.dioE   (dioE   ),
 		.dioA   (dioA   ),  
 		.dioD   (dioD   ),  
 		.dioW   (dioW   ),  
 		.sdcCs  (sdcCs  ),
 		.sdcCk  (sdcCk  ),
 		.sdcMosi(sdcMosi),
-		.sdcMiso(sdcMiso)
+		.sdcMiso(sdcMiso),
+		.tapePlay(~play ),
+		.tapeStop(~stop ),
+		.tapeBusy(tapeBusy),
+		.tapeEar (tapeEar)
 	);
-
-//--- audio ---------------------------------------------------------------------------------------
-
-	wire[14:0] left;
-	wire[14:0] right;
-
-	wire[15:0] lmix = { 1'd0,  left }+{ 4'd0, {12{ !status[5] && ear}} };
-	wire[15:0] rmix = { 1'd0, right }+{ 4'd0, {12{ !status[5] && ear}} };
-
-	i2s i2s(clock50, lmix, rmix, i2sCk, i2sWs, i2sQ);
 
 //--- keyboard ------------------------------------------------------------------------------------
 
@@ -163,10 +168,11 @@ module psd
 
 	wire[13:0] a1;
 	wire[ 7:0] q1;
+	wire       w1;
 
 	wire[18:0] a2;
 	wire[ 7:0] d2;
-	wire[ 7:0] q2 = sdrQ[7:0]; // a2[18:17] ? memQ : romQ;
+	wire[ 7:0] q2 = sdrQ[7:0]; // a2[18:17] ? memQ : romQ; //
 	wire       r2;
 	wire       w2;
 
@@ -179,24 +185,24 @@ module psd
 	endcase
 
 	// wire[7:0] romQ;
-	// ram #(64) rom(clock, romIo ? dioA[15:0] : { romMap[1:0], a2[13:0] }, dioD, romQ, romIo && dioW);
+	// ram #(64) rom(clock, dioE ? dioA[15:0] : { romMap[1:0], a2[13:0] }, dioD, romQ, dioE && dioW);
 
 	// wire[7:0] memQ;
-	// ram #(256) mem(clock, a2[17:0], d2, memQ, !mreq && !w2 && a2[18:17]);
+	// ram #(256) mem(clock, a2[17:0], d2, memQ, w2);
 
-	dprs #(16) dpr(clock, a1, q1, clock, { a2[15], a2[12:0] }, d2, w2 && a2[18:17] == 2 && a2[16] && a2[14] && !a2[13]);
+	dprs #(16) dpr(clock, a1, q1, clock, { a2[15], a2[12:0] }, d2, w1);
 
-	wire ready;
+	wire ready; // = 1'b1;
 	wire rfsh;
 
 	reg r2p = 0;
 	always @(posedge clock) if(pe3M5) r2p <= r2;
 
-	wire[23:0] sdrA  = { 5'd0, romIo ? dioA[18:0] : a2[18:17] == 0 ? { 2'd0, romMap, a2[13:0] } : a2 };
-	wire[15:0] sdrD =  { 8'hFF, romIo ? dioD : d2 };
+	wire[23:0] sdrA  = { 5'd0, dioE ? (dioA[18:0] + (model ? 16'h4000 : 16'd0)) : a2[18:17] ? a2 : { 2'd0, romMap, a2[13:0] } };
+	wire[15:0] sdrD =  { 8'hFF, dioE ? dioD : d2 };
 	wire[15:0] sdrQ;
 	wire       sdrR = r2p;
-	wire       sdrW = romIo ? dioW : w2;
+	wire       sdrW = dioE ? dioW : w2;
 
 	sdram sdram
 	(
@@ -221,48 +227,19 @@ module psd
 
 	assign dramCk = clock;
 
-//--- tzx -----------------------------------------------------------------------------------------
-
-	localparam TK = 512;
-	localparam TW = $clog2(TK*1024);
-
-	reg[TW-1:0] tzxSize;
-	always @(posedge clock) if(tzxIo) tzxSize <= dioSz[TW-1:0];
-
-	wire[TW-1:0] tzxA;
-	wire[   7:0] tzxQ;
-
-	ram #(TK) ram(clock, tzxIo ? dioA[TW-1:0] : tzxA, dioD, tzxQ, tzxIo && dioW);
-
-	wire tzxBusy;
-	wire tzxTape;
-
-	tzx #(56000, TW) tzx
-	(
-		.clock  (clock  ),
-		.ce     (1'b1   ),
-		.a      (tzxA   ),
-		.d      (tzxQ   ),
-		.play   (!play  ),
-		.stop   (!stop  ),
-		.busy   (tzxBusy),
-		.size   (tzxSize),
-		.tape   (tzxTape)
-	);
-
 //--- zx ------------------------------------------------------------------------------------------
 
 	reg rsp = 1'b0;
 	reg rse = 1'b1;
 	always @(posedge clock) begin rsp <= model; rse <= rsp == model; end
 
-	wire model = status[3];
-	wire divmmc = !status[4];
+	wire model = status[2];
+	wire divmmc = !status[3];
 
-	wire reset = power && ready && F9 && !status[1] && !romIo && rse;
-	wire nmi = F5 && !status[2];
+	wire reset = power && ready && F9 && !status[0] && !dioE && rse;
+	wire nmi = F5 && !status[1];
 
-	wire ear = tzxBusy ? tzxTape : ~tape;
+	wire ear = tapeBusy ? tapeEar : ~tape;
 
 	zx zx
 	(
@@ -278,6 +255,7 @@ module psd
 		.nmi    (nmi    ),
 		.a1     (a1     ),
 		.q1     (q1     ),
+		.w1     (w1     ),
 		.a2     (a2     ),
 		.d2     (d2     ),
 		.q2     (q2     ),
